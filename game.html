@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>I'm thinking of a number...</title>
+<script>
+"use strict";
+var GAME = (function (myObj) {
+        myObj.state = {};
+        myObj.ui = {};
+        myObj.newgame = function (playagain) {
+	        // Begin a new game of guess-the-number
+	        // Set up an object to hold document elements we care about
+            GAME.ui = {
+                heading: null,		// The <h1> at the top of the document.
+                prompt: null,		// Ask the user to enter a guess.
+                input: null,		// Where the user enters the guess.
+                low: null,			// Three table cells for the visual representation
+                mid: null,			// ... of the range of numbers to guess.
+                high: null
+            };
+            var id = 0;
+            // Look up each of these element ids
+            for (id in GAME.ui) {
+                if (GAME.ui.hasOwnProperty(id)) {
+				    /*global document */
+                    GAME.ui[id] = document.getElementById(id);
+                }
+            }
+            // Define an event handler for the input field
+            GAME.ui.input.onchange = GAME.handleGuess;
+            // Pick a random number and initialise game state
+            GAME.state = {
+                n: Math.floor(99 * Math.random()) + 1,	// An integer: 0 < n < 100
+                low: 0,				// The lower bound (exclusive) on guesses
+                high: 100,			// The upper bound (exclusive) on guesses
+                guessnum: 0,		// How many guesses have been made
+                guess: undefined	// What the last guess was
+            };
+            // Modify document content to display this initial state
+            GAME.display(GAME.state);
+            if (playagain === true) { GAME.save(GAME.state); }
+        };
+        myObj.save = function (state) {
+		    /*global history */
+            if (!history.pushState) { return; }	// Do nothing if pushState() not defined
+            // Associate a URL with the saved state...
+            var url = "#guess" + state.guessnum;
+            // Now save the state object and the URL
+            history.pushState(state,	// State object to save
+                "",		// State title: current browsers ignore this
+                url);		// State URL: not useful to bookmark
+        };
+        myObj.popState = function (event) {
+            if (event.state) {
+                // Note that event.state is a deep copy of the saved state object
+                // so we can modify it without altering the saved value.
+                var state = event.state;	// Restore the historical state
+                GAME.display(state);			// Display the restored state
+            } else {
+                // When we load the page for the first time, we'll get a popstate event
+                // with no state. Replace that null state with our real state: see the
+                // comment in newgame(). No need to call display() here.
+                history.replaceState(GAME.state, "", "#guess" + GAME.state.guessnum);
+            }
+        };
+        myObj.handleGuess = function () {
+            // Get the user's guess from the input field
+            var g = parseInt(this.value, 10);
+            // If it is a number and is in the right range
+            if ((g > GAME.state.low) && (g < GAME.state.high)) {
+                // Update the state object based on this guess
+                if (g < GAME.state.n) {
+                    GAME.state.low = g;
+                } else if (g > GAME.state.n) {
+                    GAME.state.high = g;
+                }
+                GAME.state.guess = g;
+                GAME.state.guessnum += 1;
+                // Now save the new state in the browser's history
+                GAME.save(GAME.state);
+                // Modify the document to respond to the user's guess
+                GAME.display(GAME.state);
+            } else {	// An invalid guess: don't push a new history state
+			    /*global alert */
+                alert("Please enter a number greater than " + GAME.state.low +
+                    " and less than " + GAME.state.high);
+            }
+        };
+        myObj.display = function (state) {
+			var ui = GAME.ui,
+				heading = GAME.ui.heading,
+				input = GAME.ui.input,
+				prompt = GAME.ui.prompt;
+            // Display document heading and title
+            heading.innerHTML = document.title =
+                "I'm thinking of a number between " +
+                state.low + " and " + state.high + ".";
+            // Display a visual representation of the range of numbers using a table
+            ui.low.style.width = state.low + "%";
+            ui.mid.style.width = (state.high - state.low) + "%";
+            ui.high.style.width = (100 - state.high) + "%";
+            // Make sure the input field is visible, empty and focused
+            input.style.visibility = "visible";
+            input.value = "";
+            input.focus();
+            // Set the prompt based on the user's most recent guess
+            if (state.guess === undefined) {
+                prompt.innerHTML = "Type your guess and hit Enter: ";
+            } else if (state.guess < state.n) {
+                prompt.innerHTML = state.guess + " is too low. Guess again: ";
+            } else if (state.guess > state.n) {
+                prompt.innerHTML = state.guess + " is too high. Guess again: ";
+            } else {
+                // When correct, hide the input field and show a Play Again button.
+                input.style.visibility = "hidden";	// No more guesses now
+                heading.innerHTML = document.title = state.guess + " is correct! ";
+                prompt.innerHTML = "You Win! <button onclick='newgame(true)'>Play Again<\/button>";
+            }
+        };
+        return myObj;
+    }(GAME || {}));
+/*global window */
+window.onload = GAME.newgame;			// Start a new game when we load
+window.onpopstate = GAME.popState;		// Handle history events
+</script>
+<style>
+	#prompt { font-size: 16pt; }
+	table { width: 90%; margin: 10px; margin-left: 5%; }
+	#low, #high { background-color: #ccc; height: 1em; }
+	#mid { background-color: green; }
+</style>
+</head>
+<body>
+	<h1 id="heading">I'm thinking of a number...</h1>
+	<table>
+		<tr>
+			<td id="low"></td>
+			<td id="mid"></td>
+			<td id="high"></td>
+		</tr>
+	</table>
+	<label id="prompt"></label>
+	<input id="input" type="text">
+</body>
+</html>
